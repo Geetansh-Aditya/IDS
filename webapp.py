@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import re
+import threading
 from scapy.all import *
 
 app = Flask(__name__)
@@ -40,7 +41,15 @@ def packet_callback(packet):
 def index():
     return render_template('index.html')
 
+def start_sniffing():
+    sniff(prn=packet_callback, store=0)
+
 if __name__ == "__main__":
     print("Starting IDS and Web Dashboard...")
-    sniff(prn=packet_callback, store=0)
+
+    # Start sniffing in a separate thread
+    sniff_thread = threading.Thread(target=start_sniffing, daemon=True)
+    sniff_thread.start()
+
+    # Start Flask server
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
