@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intrusion Detection Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; text-align: center; }
+        h1 { color: #333; }
+        #alerts { width: 80%; margin: auto; text-align: left; }
+        .alert-box { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .high { background-color: red; color: white; }
+        .medium { background-color: orange; color: white; }
+        .low { background-color: yellow; color: black; }
+    </style>
+</head>
+<body>
+    <h1>Intrusion Detection Dashboard</h1>
+    <div id="alerts"></div>
+
+    <script>
+        var socket = io();
+
+        socket.on('new_alert', function(data) {
+            let severity = "low";  // Default severity
+            if (data.signature.includes("exploit") || data.signature.includes("attack")) {
+                severity = "high";
+            } else if (data.signature.includes("scan") || data.signature.includes("probe")) {
+                severity = "medium";
+            }
+
+            let alertBox = document.createElement("div");
+            alertBox.className = "alert-box " + severity;
+            alertBox.textContent = data.message;
+
+            document.getElementById("alerts").prepend(alertBox);
+        });
+    </script>
+</body>
+</html>
