@@ -7,8 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         #alerts {
             max-height: 250px;
@@ -25,37 +23,11 @@
             <h2 class="text-xl font-semibold mb-2">Live Alerts</h2>
             <div id="alerts" class="mt-3 space-y-2 p-2 border border-gray-600 rounded-lg"></div>
         </div>
-
-        <!-- Traffic Visualization -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
-                <h2 class="text-xl font-semibold mb-2">Traffic Patterns</h2>
-                <canvas id="trafficChart" class="h-64"></canvas>
-            </div>
-            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
-                <h2 class="text-xl font-semibold mb-2">Attack Types</h2>
-                <canvas id="signatureChart" class="h-64"></canvas>
-            </div>
-        </div>
-
-        <!-- GeoIP Map -->
-        <div class="bg-gray-800 p-4 rounded-lg shadow-lg mt-6">
-            <h2 class="text-xl font-semibold mb-2">Attack Sources</h2>
-            <div id="attackMap" class="h-96 rounded-lg"></div>
-        </div>
     </div>
 
     <script>
         const socket = io.connect(window.location.origin);
         const MAX_ALERTS = 10;
-        const MAX_MARKERS = 50;
-        let markers = [];
-
-        // Initialize map
-        const map = L.map('attackMap').setView([20, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
 
         socket.on('new_alert', (data) => {
             const alertsContainer = document.getElementById('alerts');
@@ -69,16 +41,6 @@
                     <div class="text-xs text-gray-400">Source IP: ${data.source_ip}</div>
                 </div>
             `);
-
-            // Limit number of markers
-            if (markers.length >= MAX_MARKERS) {
-                let oldMarker = markers.shift();
-                map.removeLayer(oldMarker);
-            }
-            const lat = 39.8283 + (Math.random() - 0.5) * 10;
-            const lng = -98.5795 + (Math.random() - 0.5) * 10;
-            let marker = L.marker([lat, lng]).addTo(map).bindPopup(`<b>${data.signature}</b><br>${data.source_ip}`).openPopup();
-            markers.push(marker);
         });
     </script>
 </body>
