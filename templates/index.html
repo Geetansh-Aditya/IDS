@@ -24,11 +24,11 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
                 <h2 class="text-xl font-semibold mb-2">Traffic Patterns</h2>
-                <canvas id="trafficChart"></canvas>
+                <canvas id="trafficChart" class="h-64"></canvas>
             </div>
             <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
                 <h2 class="text-xl font-semibold mb-2">Attack Types</h2>
-                <canvas id="signatureChart"></canvas>
+                <canvas id="signatureChart" class="h-64"></canvas>
             </div>
         </div>
 
@@ -41,9 +41,10 @@
 
     <script>
         const socket = io.connect(window.location.origin);  // Dynamic origin
+        const MAX_TRAFFIC_POINTS = 15;
+        const MAX_ATTACK_TYPES = 10;
         let attackCounts = {};
         let trafficData = [];
-        let trafficUpdateInterval = 5000; // 5 seconds
 
         // Initialize map
         const map = L.map('attackMap').setView([20, 0], 2);
@@ -51,7 +52,7 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Initialize charts
+        // Initialize charts with fixed configuration
         const trafficChart = new Chart(document.getElementById("trafficChart"), {
             type: 'line',
             data: {
@@ -65,7 +66,16 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        suggestedMax: 100
+                    }
+                },
+                animation: {
+                    duration: 0
+                }
             }
         });
 
@@ -84,7 +94,12 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
             }
         });
 
@@ -94,7 +109,13 @@
         });
 
         socket.on('new_alert', (data) => {
-            // Update alerts list
+            // Limit alerts to 10 most recent
+            const alertsContainer = document.getElementById('alerts');
+            if (alertsContainer.children.length >= 10) {
+                alertsContainer.removeChild(alertsContainer.lastChild);
+            }
+
+            // Add new alert at the top
             const alertHTML = `
                 <div class="p-3 mb-2 rounded-lg bg-red-900/50 animate-pulse">
                     <div class="font-bold text-red-400">${data.signature}</div>
@@ -102,12 +123,18 @@
                     <div class="text-xs text-gray-400">Source IP: ${data.source_ip}</div>
                 </div>
             `;
-            document.getElementById('alerts').insertAdjacentHTML('afterbegin', alertHTML);
+            alertsContainer.insertAdjacentHTML('afterbegin', alertHTML);
 
-            // Update signature chart
+            // Update signature chart with top attack types
             attackCounts[data.signature] = (attackCounts[data.signature] || 0) + 1;
-            signatureChart.data.labels = Object.keys(attackCounts);
-            signatureChart.data.datasets[0].data = Object.values(attackCounts);
+
+            // Sort and limit attack types
+            const sortedAttacks = Object.entries(attackCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, MAX_ATTACK_TYPES);
+
+            signatureChart.data.labels = sortedAttacks.map(attack => attack[0]);
+            signatureChart.data.datasets[0].data = sortedAttacks.map(attack => attack[1]);
             signatureChart.update();
 
             // Update map with mock geolocation (implement real geolocation in production)
@@ -119,14 +146,17 @@
                 .openPopup();
         });
 
-        // Simulate traffic updates
+        // Simulate traffic updates with fixed window
         setInterval(() => {
             trafficData.push(Math.floor(Math.random() * 100));
-            if (trafficData.length > 15) trafficData.shift();
+            if (trafficData.length > MAX_TRAFFIC_POINTS) {
+                trafficData.shift();
+            }
+
             trafficChart.data.labels = Array.from({length: trafficData.length}, (_, i) => i + 1);
             trafficChart.data.datasets[0].data = trafficData;
             trafficChart.update();
-        }, trafficUpdateInterval);
+        }, 5000);
     </script>
 </body>
 </html>
