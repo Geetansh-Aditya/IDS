@@ -20,6 +20,7 @@ with open(rules_file, 'r') as file:
                 attack_signatures.append(match.lower())
 
 def check_for_intrusion(packet):
+    """Check if the packet payload matches any attack signatures."""
     if packet.haslayer(Raw):
         try:
             payload = packet[Raw].load.decode(errors='ignore').lower()
@@ -31,6 +32,7 @@ def check_for_intrusion(packet):
     return False, None
 
 def packet_callback(packet):
+    """Process captured packets and detect intrusions."""
     intrusion_detected, signature = check_for_intrusion(packet)
     if intrusion_detected:
         alert_msg = f"Intrusion detected! Signature: '{signature}' in {packet.summary()}"
@@ -39,10 +41,12 @@ def packet_callback(packet):
 
 @app.route('/')
 def index():
+    """Render the web dashboard."""
     return render_template('index.html')
 
 def start_sniffing():
-    sniff(prn=packet_callback, store=0)
+    """Start packet sniffing on port 80."""
+    sniff(filter="tcp port 80", prn=packet_callback, store=0)
 
 if __name__ == "__main__":
     print("Starting IDS and Web Dashboard...")
