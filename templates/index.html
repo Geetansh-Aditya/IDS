@@ -23,24 +23,65 @@
             <h2 class="text-xl font-semibold mb-2">Live Alerts</h2>
             <div id="alerts" class="mt-3 space-y-2 p-2 border border-gray-600 rounded-lg"></div>
         </div>
+
+        <!-- Attack Types Section -->
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg mb-6">
+            <h2 class="text-xl font-semibold mb-2">Attack Types</h2>
+            <canvas id="attackChart" class="h-64"></canvas>
+        </div>
     </div>
 
     <script>
         const socket = io.connect(window.location.origin);
         const MAX_ALERTS = 10;
+        let attackCounts = {};
+
+        // Initialize Attack Types Chart
+        const attackChart = new Chart(document.getElementById("attackChart"), {
+            type: 'doughnut',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Attack Types',
+                    data: [],
+                    backgroundColor: []
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+
+        function getThreatColor(signature) {
+            const mediumThreats = ["XSS", "SQL Injection", "Brute Force"];
+            return mediumThreats.includes(signature) ? '#facc15' : '#ef4444';
+        }
 
         socket.on('new_alert', (data) => {
             const alertsContainer = document.getElementById('alerts');
             if (alertsContainer.children.length >= MAX_ALERTS) {
                 alertsContainer.removeChild(alertsContainer.lastChild);
             }
+
+            const threatColor = getThreatColor(data.signature);
             alertsContainer.insertAdjacentHTML('afterbegin', `
-                <div class="p-3 mb-2 rounded-lg bg-red-900/50 animate-pulse">
-                    <div class="font-bold text-red-400">${data.signature}</div>
+                <div class="p-3 mb-2 rounded-lg" style="background-color: ${threatColor}33">
+                    <div class="font-bold" style="color: ${threatColor}">${data.signature}</div>
                     <div class="text-sm">${data.message}</div>
                     <div class="text-xs text-gray-400">Source IP: ${data.source_ip}</div>
                 </div>
             `);
+
+            // Update attack types chart
+            attackCounts[data.signature] = (attackCounts[data.signature] || 0) + 1;
+            attackChart.data.labels = Object.keys(attackCounts);
+            attackChart.data.datasets[0].data = Object.values(attackCounts);
+            attackChart.data.datasets[0].backgroundColor = Object.keys(attackCounts).map(getThreatColor);
+            attackChart.update();
         });
     </script>
 </body>
