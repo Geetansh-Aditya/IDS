@@ -4,37 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Intrusion Detection Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; text-align: center; }
-        h1 { color: #333; }
-        #alerts { width: 80%; margin: auto; text-align: left; }
-        .alert-box { padding: 10px; margin: 10px 0; border-radius: 5px; }
-        .high { background-color: red; color: white; }
-        .medium { background-color: orange; color: white; }
-        .low { background-color: yellow; color: black; }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
 </head>
-<body>
-    <h1>Intrusion Detection Dashboard</h1>
-    <div id="alerts"></div>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-4 text-center">Intrusion Detection System</h1>
+
+        <!-- Live Alerts Section -->
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg mb-6">
+            <h2 class="text-xl font-semibold">Live Alerts</h2>
+            <div id="alerts" class="mt-3 space-y-2 overflow-auto h-64 p-2 border border-gray-600 rounded-lg"></div>
+        </div>
+
+        <!-- Traffic Visualization -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+                <h2 class="text-xl font-semibold">Packet Traffic</h2>
+                <canvas id="trafficChart"></canvas>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg shadow-lg">
+                <h2 class="text-xl font-semibold">Top Attack Signatures</h2>
+                <canvas id="signatureChart"></canvas>
+            </div>
+        </div>
+
+        <!-- GeoIP Map -->
+        <div class="bg-gray-800 p-4 rounded-lg shadow-lg mt-6">
+            <h2 class="text-xl font-semibold">Attack Source Map</h2>
+            <div id="attackMap" class="h-64"></div>
+        </div>
+    </div>
 
     <script>
-        var socket = io();
+        var socket = io.connect("http://localhost:5000");
+        var attackCounts = {};
+        var trafficData = [];
+        var map = L.map('attackMap').setView([20, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var trafficChart = new Chart(document.getElementById("trafficChart"), {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Packets Per Second', data: [], borderColor: 'red', fill: false }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        var signatureChart = new Chart(document.getElementById("signatureChart"), {
+            type: 'bar',
+            data: { labels: [], datasets: [{ label: 'Detected Signatures', data: [], backgroundColor: 'orange' }] },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
 
         socket.on('new_alert', function(data) {
-            let severity = "low";  // Default severity
-            if (data.signature.includes("exploit") || data.signature.includes("attack")) {
-                severity = "high";
-            } else if (data.signature.includes("scan") || data.signature.includes("probe")) {
-                severity = "medium";
-            }
+            let alertBox = document.createElement('div');
+            alertBox.className = "p-2 rounded text-white";
+            alertBox.innerHTML = `<strong>${data.signature}</strong>: ${data.message}`;
+            alertBox.style.backgroundColor = "#dc2626";  // Red for high severity
+            document.getElementById('alerts').prepend(alertBox);
 
-            let alertBox = document.createElement("div");
-            alertBox.className = "alert-box " + severity;
-            alertBox.textContent = data.message;
-
-            document.getElementById("alerts").prepend(alertBox);
+            // Update Signature Chart
+            attackCounts[data.signature] = (attackCounts[data.signature] || 0) + 1;
+            signatureChart.data.labels = Object.keys(attackCounts);
+            signatureChart.data.datasets[0].data = Object.values(attackCounts);
+            signatureChart.update();
         });
     </script>
 </body>
